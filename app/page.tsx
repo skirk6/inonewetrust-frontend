@@ -34,6 +34,12 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!base) {
+      setError(
+        "Missing NEXT_PUBLIC_API_BASE. Set it in Vercel → Settings → Environment Variables."
+      );
+      return;
+    }
     fetch(`${base}/health`)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
