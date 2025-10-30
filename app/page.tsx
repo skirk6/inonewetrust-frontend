@@ -32,12 +32,11 @@ export default function Home() {
   const [signal, setSignal] = useState<Signal | null>(null);
   const [lucky, setLucky] = useState<LuckyResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [meta, setMeta] = useState<{ server_time?: string; version?: string }>({});
 
   useEffect(() => {
     if (!base) {
-      setError(
-        "Missing NEXT_PUBLIC_API_BASE. Set it in Vercel → Settings → Environment Variables."
-      );
+      setError("Missing NEXT_PUBLIC_API_BASE. Set it in Vercel → Settings → Environment Variables.");
       return;
     }
     fetch(`${base}/health`)
@@ -45,7 +44,10 @@ export default function Home() {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then((data) => setStatus(data.status || "unknown"))
+      .then((data) => {
+        setStatus(data.status || "unknown");
+        setMeta({ server_time: data.server_time, version: data.version });
+      })
       .catch((e) => setError(String(e)));
   }, [base]);
 
@@ -124,6 +126,12 @@ export default function Home() {
           )}
           {!status && !error && <span>Checking…</span>}
         </div>
+
+        {meta.server_time && (
+          <div className="mt-1 text-xs text-gray-500">
+            Server time: {meta.server_time} • API v{meta.version}
+          </div>
+        )}
       </div>
 
       <form onSubmit={onSearch} className="mt-8 flex gap-2">
