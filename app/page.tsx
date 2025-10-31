@@ -21,6 +21,19 @@ type LuckyResponse = {
   note: string;
 };
 
+function formatUTC(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat("en-US", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "UTC",
+    }).format(date) + " UTC";
+  } catch {
+    return dateString;
+  }
+}
+
 export default function Home() {
   const base = process.env.NEXT_PUBLIC_API_BASE;
   const [status, setStatus] = useState<null | string>(null);
@@ -34,7 +47,6 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [meta, setMeta] = useState<{ server_time?: string; version?: string }>({});
 
-  // --- Health check ---
   useEffect(() => {
     if (!base) {
       setError("Missing NEXT_PUBLIC_API_BASE. Set it in Vercel → Settings → Environment Variables.");
@@ -57,17 +69,14 @@ export default function Home() {
     checkHealth();
   }, [base]);
 
-  // --- Validation ---
   const validateQuery = (input: string) => {
     const trimmed = input.trim();
     if (!trimmed) return "Query cannot be empty.";
     if (trimmed.length > 50) return "Query too long.";
-    if (!/^[a-zA-Z0-9 .-]+$/.test(trimmed))
-      return "Query contains invalid characters.";
+    if (!/^[a-zA-Z0-9 .-]+$/.test(trimmed)) return "Query contains invalid characters.";
     return null;
   };
 
-  // --- API functions ---
   const performSearch = async (query: string) => {
     setResult(null);
     setSignal(null);
@@ -100,10 +109,7 @@ export default function Home() {
     setSignal(null);
     setLucky(null);
     setError(null);
-    const sym =
-      result.type === "ticker"
-        ? result.normalized
-        : result.suggestions?.[0] || result.normalized;
+    const sym = result.type === "ticker" ? result.normalized : result.suggestions?.[0] || result.normalized;
     try {
       const r = await fetch(`${base}/signal/${encodeURIComponent(sym)}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -135,7 +141,6 @@ export default function Home() {
     }
   }
 
-  // --- UI ---
   return (
     <main className="min-h-screen p-8 max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold">In One We Trust</h1>
@@ -143,10 +148,7 @@ export default function Home() {
 
       <div className="mt-4 rounded-lg border p-4">
         <div className="font-mono">
-          API:{" "}
-          <span className="font-semibold">
-            {base ?? "(not configured)"}
-          </span>
+          API: <span className="font-semibold">{base ?? "(not configured)"}</span>
         </div>
         <div className="mt-2">
           {status && (
@@ -163,7 +165,7 @@ export default function Home() {
         </div>
         {meta.server_time && (
           <div className="mt-1 text-xs text-gray-500">
-            Server time: {meta.server_time} • API v{meta.version}
+            Server time: {formatUTC(meta.server_time)} • API v{meta.version}
           </div>
         )}
       </div>
@@ -185,7 +187,73 @@ export default function Home() {
         </button>
       </form>
 
-      {/* existing results and lucky picks rendering go here */}
+      {result && (
+        <div className="mt-6 rounded-lg border p-4 space-y-3">
+          <div className="text-sm text-gray-500">Search Result</div>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="font-semibold">Query:</div>
+            <div>{result.query}</div>
+            <div className="font-semibold">Normalized:</div>
+            <div>{result.normalized}</div>
+            <div className="font-semibold">Type:</div>
+            <div className="capitalize">{result.type}</div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={getSignal}
+              className="rounded-lg border px-3 py-2 hover:bg-gray-50"
+              disabled={loading}
+            >
+              {loading ? "Loading…" : "Get Signal"}
+            </button>
+
+            <button
+              onClick={feelingLucky}
+              className="rounded-lg border px-3 py-2 hover:bg-gray-50"
+              disabled={loading}
+            >
+              {loading ? "Loading…" : "I’m Feeling Lucky"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {signal && (
+        <div className="mt-6 rounded-lg border p-4">
+          <div className="text-sm text-gray-500 mb-2">Signal</div>
+          <div className="text-lg font-semibold">
+            {signal.symbol}: {signal.action} (score {signal.score})
+          </div>
+          <ul className="mt-2 list-disc list-inside text-sm">
+            {signal.reasons.map((r, i) => (
+              <li key={i}>{r}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {lucky && (
+        <div className="mt-6 rounded-lg border p-4">
+          <div className="text-sm text-gray-500 mb-2">Today’s Picks (Demo)</div>
+          <ul className="space-y-2">
+            {lucky.picks.map((p) => (
+              <li key={p.symbol} className="border rounded p-2">
+                <div className="font-semibold">
+                  {p.symbol}: {p.action} (score {p.score})
+                </div>
+                <ul className="list-disc list-inside text-sm">
+                  {p.reasons.map((r, i) => (
+                    <li key={i}>{r}</li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-gray-500">{lucky.note}</p>
+        </div>
+      )}
     </main>
   );
 }
+
